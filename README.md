@@ -1,6 +1,6 @@
-# 🎓 MSc Socratic CS Chatbot
+# 🎓 Socratic Tutor for History GCSE 
 
-An adaptive Socratic tutoring system built for OCR A-level Computer Science using LangGraph, LangChain, and Streamlit. This application dynamically ingests specification documents and guides students through computer science concepts using pedagogical scaffolding and safety-critical guardrails.
+An adaptive Socratic tutoring system using LangGraph, LangChain, and Streamlit. This application dynamically ingests specification documents and guides students through computer science concepts using pedagogical scaffolding and safety-critical guardrails.
 
 ## 📂 Directory Structure
 
@@ -43,24 +43,6 @@ python ingest_corpus.py
 Run the Streamlit local application server to begin the learning session:
 
 python -m streamlit run app.py
-
-## 🛠️ Automated Evaluation Suite
-This framework features a multi-tiered software verification pipeline to validate conversational boundaries, safety invariants, and pedagogical containment completely without human participant trials.
-
-1. Low-Level Unit Tests (test_socratic_fsm.py)
-Validates deterministic state transitions, threshold triggers, and structural FSM invariants using strict assertions:
-
-python -m unittest test_socratic_fsm.py
-
-2. Isolated RAG Proof-of-Concept Baseline (evaluate_rag.py)
-Runs an isolated, sandbox retrieval evaluation to establish precision baselines for vector database retrieval and output groundedness before exposing the system to live, multi-turn logic:
-
-python evaluate_rag.py
-
-3. Behavioral Guardrail Testing (evaluate_system.py)
-Automates user simulation by stress-testing the LangGraph orchestration layer against 20 distinct synthetic student profiles to check state-routing performance:
-
-python evaluate_system.py
 
 4. Quantitative RAG Quality Matrix (evaluate_system_rag.py)
 Benchmarks factual faithfulness (Groundedness) and Context Relevance under adversarial conditions using an LLM-as-a-Judge framework:
