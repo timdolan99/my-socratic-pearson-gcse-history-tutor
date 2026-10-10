@@ -1,0 +1,55 @@
+{
+  "course_id": "edexcel_gcse_history",
+  "course_title": "Edexcel GCSE History",
+  "subject": "History",
+  "level": "GCSE",
+  "target_turns": 5,
+  "topics": {
+    "Paper 1: Thematic study and historic environment": {
+      "Crime and punishment in Britain, c1000–present": [
+        "c1000–c1500: Crime, law enforcement and punishment in medieval England",
+        "c1500–c1700: Early modern law enforcement and trial methods",
+        "c1700–c1900: Industrial period developments and the Met Police",
+        "c1900–present: Modern policing, forensic science, and technological crime",
+        "Historic Environment: Whitechapel, c1870–c1900"
+      ],
+      "Medicine in Britain, c1250–present": [
+        "c1250–c1500: Ideas about cause and care in medieval medicine",
+        "c1500–c1700: Renaissance medical breakthroughs and Harvey",
+        "c1700–c1900: Industrial period vaccines, antiseptics and Germ Theory",
+        "c1900–present: Modern magic bullets, antibiotics and the NHS",
+        "Historic Environment: Western Front casualty care, 1914–18"
+      ]
+    },
+    "Paper 2: Period study and British depth study": {
+      "Superpower relations and the Cold War, 1941–91": [
+        "Origins of the Cold War, 1941–58 (Yalta, Potsdam, Truman Doctrine, NATO)",
+        "Cold War crises, 1958–70 (Berlin Wall, Cuban Missile Crisis, Prague Spring)",
+        "End of the Cold War, 1970–91 (Détente, Reagan, SDI, Fall of the Wall)"
+      ],
+      "Early Elizabethan England, 1558–88": [
+        "Queen, government and religion, 1558–69",
+        "Challenges to Elizabeth at home and abroad, 1569–88",
+        "Elizabethan society in the Age of Exploration, 1558–88"
+      ],
+      "Anglo-Saxon and Norman England, c1060–88": [
+        "Anglo-Saxon England and the Norman Conquest, 1060–66",
+        "William I as King: establishing control, 1066–87",
+        "Norman England, 1066–88"
+      ]
+    },
+    "Paper 3: Modern depth study": {
+      "Weimar and Nazi Germany, 1918–39": [
+        "The Weimar Republic 1918–29 (Treaty of Versailles, Hyperinflation, Stresemann)",
+        "Hitler's rise to power, 1919–33 (Great Depression, Nazi propaganda, Chancellor)",
+        "Nazi control and dictatorship, 1933–39 (Reichstag Fire, Enabling Act, Police State)",
+        "Life in Nazi Germany, 1933–39 (Youth, women, employment, persecution)"
+      ],
+      "The USA, 1954–75: conflict at home and abroad": [
+        "The civil rights movement, 1954–65",
+        "Changes in civil rights, 1965–75",
+        "US involvement in the Vietnam War, 1954–75"
+      ]
+    }
+  }
+}
