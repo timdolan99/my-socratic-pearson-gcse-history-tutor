@@ -10,8 +10,14 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langgraph.graph import END, StateGraph
 
-# --- Global API Key Retrieval for Pydantic Validation ---
-API_KEY = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+# --- Robust Global API Key Retrieval for Streamlit Cloud & Local ---
+def _get_google_api_key():
+    key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if isinstance(key, dict) or hasattr(key, "get"):
+        return key.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    return key
+
+API_KEY = _get_google_api_key()
 
 # --- Load dynamic course specification ---
 SPEC_PATH = "course_spec.json"
