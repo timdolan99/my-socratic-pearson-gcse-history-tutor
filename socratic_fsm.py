@@ -3,11 +3,15 @@ import os
 import re
 from typing import Any, Dict, List, TypedDict
 
+import streamlit as st
 from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langgraph.graph import END, StateGraph
+
+# --- Global API Key Retrieval for Pydantic Validation ---
+API_KEY = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 # --- Load dynamic course specification ---
 SPEC_PATH = "course_spec.json"
@@ -85,7 +89,9 @@ TUTORING MANDATE:
 - Focus on developing their disciplinary literacy in {SUBJECT}: encourage precise subject-specific terminology, explicit causal reasoning, structural mechanisms, accurate contextual details, and evidence-backed explanations.
 - Never give away full answers directly."""
 
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", streaming=True)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, streaming=True
+    )
     messages_to_send = [SystemMessage(content=system_prompt)] + list(messages)
 
     for chunk in llm.stream(messages_to_send):
@@ -116,7 +122,7 @@ TUTORING MANDATE:
 - Focus on developing their disciplinary literacy in {SUBJECT}: encourage precise subject-specific terminology, explicit causal reasoning, structural mechanisms, accurate contextual details, and evidence-backed explanations.
 - Never give away full answers directly."""
 
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash")
+    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", google_api_key=API_KEY)
     messages_to_send = [SystemMessage(content=system_prompt)] + list(state["messages"])
     response = llm.invoke(messages_to_send)
 
@@ -168,7 +174,7 @@ CRITICAL RULE: DO NOT include a percentage score, DO NOT include a summary data 
         )
     )
 
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash")
+    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", google_api_key=API_KEY)
     messages_to_send = (
         [SystemMessage(content=system_prompt)]
         + list(state["messages"])
@@ -269,7 +275,9 @@ Return ONLY a JSON object:
     ]
 }}"""
 
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.2)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0.2
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
 
     raw_text = extract_clean_text(response)
@@ -317,7 +325,9 @@ Return ONLY a JSON object:
     "feedback": "Encouraging examiner advice focusing on terminology and conceptual flow..."
 }}"""
 
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
 
     raw_text = extract_clean_text(response)
@@ -339,7 +349,9 @@ Generate exactly 10 short-answer exam questions testing precise definitions, key
 Output ONLY a valid JSON array of 10 question strings, with no additional text or formatting:
 ["Question 1 text...", "Question 2 text...", ...]"""
 
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.3)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0.3
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
 
     raw_text = extract_clean_text(response)
@@ -390,7 +402,9 @@ Return your assessment strictly as a single JSON object with no extra commentary
 Student Submission:
 {qa_pairs}"""
 
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
 
     raw_text = extract_clean_text(response)
@@ -416,7 +430,9 @@ def generate_extended_question(
 Create ONE high-tier extended evaluation question for the subtopic: '{sub_topic}'.
 Use standard specification command words like 'Explain', 'Discuss', 'Evaluate', or 'Analyze'.
 Return ONLY the raw question text."""
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.3)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0.3
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     raw_text = extract_clean_text(response)
     return raw_text.strip()
@@ -447,7 +463,9 @@ Return a JSON object:
   "struggle_advice": "Advice for improvement...",
   "model_answer": "Exemplar top-band response..."
 }}"""
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     clean_text = extract_clean_text(response)
     clean_text = re.sub(r"```json|```", "", clean_text).strip()
@@ -466,7 +484,9 @@ Return ONLY JSON:
   "question": "Exam question...",
   "layman_answer": "Informal student draft..."
 }}"""
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.4)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0.4
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     clean_text = extract_clean_text(response)
     clean_text = re.sub(r"```json|```", "", clean_text).strip()
@@ -497,7 +517,9 @@ Return JSON:
   "missed_terms": ["term 2"],
   "feedback": "Constructive examiner note..."
 }}"""
-    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     clean_text = extract_clean_text(response)
     clean_text = re.sub(r"```json|```", "", clean_text).strip()
