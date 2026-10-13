@@ -32,12 +32,16 @@ SUBJECT = COURSE_SPEC.get("subject", "History")
 LEVEL = COURSE_SPEC.get("level", "GCSE")
 TARGET_TURNS = COURSE_SPEC.get("target_turns", 5)
 
+# Primary database table target for History telemetry
+DB_TABLE_NAME = "activity_logs_history"
+
 
 class ChatState(TypedDict, total=False):
     messages: List[BaseMessage]
     sub_topic: str
     turn_count: int
     is_final_turn: bool
+    is_freestyle: bool
 
 
 def get_context(sub_topic: str, user_query: str) -> str:
@@ -72,7 +76,31 @@ def extract_clean_text(response) -> str:
     return str(response)
 
 
-# --- Live Streaming Generator for Streamlit UI ---
+def verify_topic_alignment(custom_prompt: str) -> Dict[str, Any]:
+    """Guardrail: Checks if a custom freestyle essay question aligns with the specification domain."""
+    context = get_context(custom_prompt, custom_prompt)
+    prompt = f"""You are an expert {COURSE_TITLE} ({LEVEL}) examiner.
+Verify if the following student essay topic/question aligns with the specification or broader historical curriculum scope.
+
+Student Custom Prompt: "{custom_prompt}"
+Syllabus Context snippet:
+{context}
+
+Return ONLY a JSON object:
+{{
+  "is_aligned": true,
+  "reasoning": "Brief note on how it connects to the course or why it is out of scope.",
+  "suggested_pivot": "If not aligned, suggest an aligned topic/question close to their entry."
+}}"""
+
+    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0.1)
+    response = llm.invoke([HumanMessage(content=prompt)])
+    clean_text = extract_clean_text(response)
+    clean_text = re.sub(r"```json|```", "", clean_text).strip()
+    return json.loads(clean_text)
+
+
+# --- Live Streaming Generators ---
 def stream_socratic_response(messages: list, sub_topic: str):
     """Streams response tokens directly from Gemini for real-time UI rendering."""
     user_query = messages[-1].content if messages else ""
@@ -98,6 +126,33 @@ TUTORING MANDATE:
     llm = ChatGoogleGenerativeAI(
         model="gemini-3.6-flash", google_api_key=API_KEY, streaming=True
     )
+    messages_to_send = [SystemMessage(content=system_prompt)] + list(messages)
+
+    for chunk in llm.stream(messages_to_send):
+        if chunk.content:
+            yield chunk.content
+
+
+def stream_freestyle_socratic_response(messages: list, custom_prompt: str):
+    """Streams response tokens for uncapped, student-led essay prep Socratic sessions."""
+    user_query = messages[-1].content if messages else ""
+    context = get_context(custom_prompt, user_query)
+
+    system_prompt = f"""You are an expert Socratic Essay Prep Coach for {COURSE_TITLE} ({LEVEL}).
+Student's Custom Essay Topic / Question: {custom_prompt}
+Relevant Specification Context:
+{context}
+
+FREESTYLE SOCRATIC MANDATE:
+- This is an UNCAPPED, student-led Socratic dialogue to prepare an essay response or written test answer.
+- Guide the student step-by-step using probing questions:
+  1. Prompt them to establish a clear thesis or line of argument.
+  2. Challenge them to provide specific historical evidence, key figures, dates, or legislation.
+  3. Introduce counter-arguments, alternative interpretations, or trade-offs to deepen evaluation.
+  4. Help them weigh relative historical significance (e.g., short-term vs long-term impact).
+- Maintain an encouraging, intellectual tone. Never write the answer for them directly."""
+
+    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", google_api_key=API_KEY, streaming=True)
     messages_to_send = [SystemMessage(content=system_prompt)] + list(messages)
 
     for chunk in llm.stream(messages_to_send):
@@ -192,6 +247,9 @@ CRITICAL RULE: DO NOT include a percentage score, DO NOT include a summary data 
 
 
 def route_turn(state: ChatState) -> str:
+    if state.get("is_freestyle", False):
+        return "socratic_tutor"
+
     if state.get("is_final_turn", False) or state.get("turn_count", 0) >= TARGET_TURNS:
         return "didactic_fallback"
 
@@ -291,6 +349,49 @@ Return ONLY a JSON object:
     return json.loads(clean_text)
 
 
+def generate_freestyle_synthesis_prompt(
+    custom_prompt: str,
+    chat_history: list,
+    course_title: str = COURSE_TITLE,
+    level: str = LEVEL,
+) -> dict:
+    """Generates a structured essay plan synthesis prompt based on the freestyle dialogue."""
+    transcript_lines = []
+    for msg in chat_history:
+        role = "Student" if msg.get("role") == "student" or isinstance(msg, HumanMessage) else "Tutor"
+        content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", "")
+        transcript_lines.append(f"{role}: {content}")
+    full_transcript = "\n".join(transcript_lines)
+
+    prompt = f"""You are an expert {course_title} ({level}) examiner.
+Student Essay Question: "{custom_prompt}"
+
+Discussion Transcript:
+{full_transcript}
+
+Task:
+Create a 6-mark Essay Plan Synthesis Task based on the points developed during the freestyle discussion.
+
+Return ONLY a JSON object:
+{{
+    "question": "Using the arguments and evidence developed in today's dialogue, write a structured 6-mark essay outline answering: '{custom_prompt}'",
+    "mark_scheme": [
+        "Mark 1: Clear thesis statement / overarching argument",
+        "Mark 2: Point 1 with specific supporting evidence",
+        "Mark 3: Point 2 with specific supporting evidence",
+        "Mark 4: Counter-argument or alternative perspective",
+        "Mark 5: Precise subject terminology and causal links",
+        "Mark 6: Balanced final evaluation / concluding judgment"
+    ]
+}}"""
+
+    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", google_api_key=API_KEY, temperature=0.2)
+    response = llm.invoke([HumanMessage(content=prompt)])
+    raw_text = extract_clean_text(response)
+    clean_text = re.sub(r"```json|```", "", raw_text).strip()
+    return json.loads(clean_text)
+
+
 def evaluate_socratic_synthesis(
     question: str,
     mark_scheme: list,
@@ -318,12 +419,15 @@ EVALUATION RULES:
 2. CREDITING CONCEPTUAL FLUENCY: Credit marks generously wherever the student demonstrates accurate conceptual understanding through precise vocabulary. Do NOT withhold marks solely because minor structural or administrative phrasing is implied rather than stated verbatim.
 3. FLEXIBLE RUBRIC MAPPING: Map the student's descriptions directly to the rubric points. If an explanation demonstrates the underlying mechanism/cause using proper domain terms, award the corresponding mark point.
 4. SCOPE BOUNDARY: Do NOT penalize or criticize the student for omitting topics outside the scope of this rubric.
-5. SCORE & FEEDBACK: The total score MUST be an integer from 0 to 6. Keep examiner feedback constructive and encouraging—praise the technical terms used effectively and gently suggest 1–2 specific terms that would elevate their disciplinary fluency further.
+5. MISCONCEPTION DETECTION: Flag misconception_flag as 1 if score < 45% (under 3/6) or if fundamental historical errors exist.
+6. SCORE & FEEDBACK: The total score MUST be an integer from 0 to 6. Keep examiner feedback constructive and encouraging.
 
 Return ONLY a JSON object:
 {{
     "score": 5,
     "max_score": 6,
+    "score_pct": 83.3,
+    "misconception_flag": 0,
     "awarded_points": ["Mark point awarded..."],
     "missed_points": ["Mark point missed..."],
     "keywords_used": ["Term 1"],
@@ -339,6 +443,36 @@ Return ONLY a JSON object:
     raw_text = extract_clean_text(response)
     clean_text = re.sub(r"```json|```", "", raw_text).strip()
     return json.loads(clean_text)
+
+
+def prepare_history_telemetry_payload(
+    unit: str,
+    subtopic: str,
+    synthesis_eval: dict,
+    course_title: str = COURSE_TITLE,
+    level: str = LEVEL,
+) -> dict:
+    """Formats payload strictly for insertion into 'activity_logs_history' under 'socratic' mode."""
+    score_pct = synthesis_eval.get("score_pct")
+    if score_pct is None and "score" in synthesis_eval:
+        score_pct = round((synthesis_eval["score"] / synthesis_eval.get("max_score", 6)) * 100, 1)
+
+    misconception = synthesis_eval.get("misconception_flag")
+    if misconception is None:
+        misconception = 1 if (score_pct is not None and score_pct < 45.0) else 0
+
+    return {
+        "table_name": DB_TABLE_NAME,
+        "subject": course_title,
+        "level": level,
+        "unit": unit,
+        "subtopic": subtopic,
+        "app_mode": "socratic",
+        "score_pct": score_pct or 0.0,
+        "keywords_used": ", ".join(synthesis_eval.get("keywords_used", [])),
+        "keywords_missed": ", ".join(synthesis_eval.get("keywords_missed", [])),
+        "misconception_flag": misconception,
+    }
 
 
 # --- Standalone Quiz Helpers ---
