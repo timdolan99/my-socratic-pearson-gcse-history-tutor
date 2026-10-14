@@ -133,24 +133,38 @@ TUTORING MANDATE:
             yield chunk.content
 
 
-def stream_freestyle_socratic_response(messages: list, custom_prompt: str):
-    """Streams response tokens for uncapped, student-led essay prep Socratic sessions."""
+def stream_freestyle_socratic_response(messages: list, custom_prompt: str, focus_mode: str = "Argument & Line of Reasoning"):
+    """Streams response tokens for uncapped, student-led Socratic sessions tailored to the chosen literacy focus."""
     user_query = messages[-1].content if messages else ""
     context = get_context(custom_prompt, user_query)
 
-    system_prompt = f"""You are an expert Socratic Essay Prep Coach for {COURSE_TITLE} ({LEVEL}).
-Student's Custom Essay Topic / Question: {custom_prompt}
+    if "Knowledge" in focus_mode:
+        pedagogical_focus = """
+        PEDAGOGICAL FOCUS: KNOWLEDGE & TECHNICAL VOCABULARY
+        - Focus on developing precise domain terminology, key dates, historical figures, legislation, and explicit cause-and-effect mechanisms.
+        - Gently challenge informal, vague, or layperson language; ask the student to rephrase explanations using precise subject vocabulary.
+        - Conduct a conversational knowledge check to deepen conceptual retention.
+        """
+    else:
+        pedagogical_focus = """
+        PEDAGOGICAL FOCUS: ARGUMENT & LINE OF REASONING
+        - Focus on helping the student articulate a clear thesis statement and sustained line of argument.
+        - Encourage evaluative connectives and structural phrasing (e.g., 'primarily', 'in contrast', 'consequently').
+        - Challenge the student to introduce counter-perspectives, weigh relative significance, and justify their line of reasoning.
+        """
+
+    system_prompt = f"""You are an expert Socratic Disciplinary Literacy Coach for {COURSE_TITLE} ({LEVEL}).
+Student Focus Topic / Question: {custom_prompt}
 Relevant Specification Context:
 {context}
 
-FREESTYLE SOCRATIC MANDATE:
-- This is an UNCAPPED, student-led Socratic dialogue to prepare an essay response or written test answer.
-- Guide the student step-by-step using probing questions:
-  1. Prompt them to establish a clear thesis or line of argument.
-  2. Challenge them to provide specific historical evidence, key figures, dates, or legislation.
-  3. Introduce counter-arguments, alternative interpretations, or trade-offs to deepen evaluation.
-  4. Help them weigh relative historical significance (e.g., short-term vs long-term impact).
-- Maintain an encouraging, intellectual tone. Never write the answer for them directly."""
+{pedagogical_focus}
+
+CRITICAL RULES:
+- DO NOT replicate or mimic standard exam board questions or mark schemes.
+- Guide the student step-by-step using probing questions.
+- Focus strictly on developing the student's disciplinary literacy and vocabulary fluency.
+- Never give away full answers directly."""
 
     llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", google_api_key=API_KEY, streaming=True)
     messages_to_send = [SystemMessage(content=system_prompt)] + list(messages)
@@ -352,10 +366,11 @@ Return ONLY a JSON object:
 def generate_freestyle_synthesis_prompt(
     custom_prompt: str,
     chat_history: list,
+    focus_mode: str = "Argument & Line of Reasoning",
     course_title: str = COURSE_TITLE,
     level: str = LEVEL,
 ) -> dict:
-    """Generates a structured essay plan synthesis prompt based on the freestyle dialogue."""
+    """Generates a structured 6-point disciplinary literacy synthesis task based on the freestyle dialogue."""
     transcript_lines = []
     for msg in chat_history:
         role = "Student" if msg.get("role") == "student" or isinstance(msg, HumanMessage) else "Tutor"
@@ -363,25 +378,33 @@ def generate_freestyle_synthesis_prompt(
         transcript_lines.append(f"{role}: {content}")
     full_transcript = "\n".join(transcript_lines)
 
-    prompt = f"""You are an expert {course_title} ({level}) examiner.
-Student Essay Question: "{custom_prompt}"
+    if "Knowledge" in focus_mode:
+        task_instruction = f"Construct a coherent 6-mark technical summary connecting the key historical terms, causes, and mechanisms explored during today's discussion on '{custom_prompt}'."
+        rubric_focus = "Focus points strictly on precise domain terms, factual accuracy, and causal links developed in the chat."
+    else:
+        task_instruction = f"Using the arguments and evidence developed in today's dialogue, write a structured 6-mark outline mapping your line of reasoning for: '{custom_prompt}'."
+        rubric_focus = "Focus points on thesis statement, supporting evidence, counter-perspective, evaluative vocabulary, and concluding judgment."
+
+    prompt = f"""You are an expert {course_title} ({level}) educator.
+Student Topic / Question: "{custom_prompt}"
 
 Discussion Transcript:
 {full_transcript}
 
 Task:
-Create a 6-mark Essay Plan Synthesis Task based on the points developed during the freestyle discussion.
+Create a 6-mark Disciplinary Literacy Synthesis Task based on the concepts explored in the discussion.
+{rubric_focus}
 
 Return ONLY a JSON object:
 {{
-    "question": "Using the arguments and evidence developed in today's dialogue, write a structured 6-mark essay outline answering: '{custom_prompt}'",
+    "question": "{task_instruction}",
     "mark_scheme": [
-        "Mark 1: Clear thesis statement / overarching argument",
-        "Mark 2: Point 1 with specific supporting evidence",
-        "Mark 3: Point 2 with specific supporting evidence",
-        "Mark 4: Counter-argument or alternative perspective",
-        "Mark 5: Precise subject terminology and causal links",
-        "Mark 6: Balanced final evaluation / concluding judgment"
+        "Mark 1: [Specific point/term from transcript]",
+        "Mark 2: [Specific point/term from transcript]",
+        "Mark 3: [Specific point/term from transcript]",
+        "Mark 4: [Specific point/term from transcript]",
+        "Mark 5: [Specific point/term from transcript]",
+        "Mark 6: [Coherent synthesis connecting these points]"
     ]
 }}"""
 

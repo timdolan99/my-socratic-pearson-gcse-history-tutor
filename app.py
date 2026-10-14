@@ -104,7 +104,7 @@ def log_session_to_supabase(unit: str, subtopic: str, app_mode: str, score_pct: 
         log_entry = ActivityLog(
             subject=COURSE_TITLE,
             level=LEVEL,
-            unit=unit or "Freestyle Essay Prep",
+            unit=unit or "Freestyle Practice",
             subtopic=subtopic or "Custom Prompt",
             app_mode="socratic",  # Keeps mode consolidated under 'socratic'
             score_pct=round(float(score_pct), 1),
@@ -220,6 +220,8 @@ if "is_freestyle" not in st.session_state:
     st.session_state.is_freestyle = False
 if "freestyle_prompt" not in st.session_state:
     st.session_state.freestyle_prompt = ""
+if "freestyle_focus" not in st.session_state:
+    st.session_state.freestyle_focus = "Argument & Line of Reasoning"
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "quiz_questions" not in st.session_state:
@@ -253,7 +255,8 @@ if "graph_state" not in st.session_state:
         "sub_topic": st.session_state.active_topic, 
         "turn_count": 0, 
         "is_final_turn": False,
-        "is_freestyle": False
+        "is_freestyle": False,
+        "freestyle_focus": "Argument & Line of Reasoning"
     }
 
 def reset_session():
@@ -262,6 +265,7 @@ def reset_session():
     st.session_state.app_mode = None
     st.session_state.is_freestyle = False
     st.session_state.freestyle_prompt = ""
+    st.session_state.freestyle_focus = "Argument & Line of Reasoning"
     st.session_state.messages = []
     st.session_state.quiz_questions = None
     st.session_state.quiz_feedback = None
@@ -277,7 +281,7 @@ def reset_session():
     st.session_state.socratic_synthesis_results = None
     st.session_state.socratic_retry_mode = False
     st.session_state.graph_state = {
-        "messages": [], "sub_topic": None, "turn_count": 0, "is_final_turn": False, "is_freestyle": False
+        "messages": [], "sub_topic": None, "turn_count": 0, "is_final_turn": False, "is_freestyle": False, "freestyle_focus": "Argument & Line of Reasoning"
     }
     st.rerun()
 
@@ -334,18 +338,27 @@ if st.session_state.active_topic is None and not st.session_state.is_freestyle:
             st.rerun()
 
     with col_btn2:
-        if st.button("🎙️ Start Freestyle Essay Prep", type="primary", use_container_width=True):
+        if st.button("🎙️ Start Freestyle Disciplinary Practice", type="primary", use_container_width=True):
             st.session_state.app_mode = "freestyle_input"
             st.rerun()
 
     if st.session_state.app_mode == "freestyle_input":
         st.markdown("---")
-        st.subheader("🎙️ Freestyle Essay & Test Preparation")
+        st.subheader("🎙️ Freestyle Disciplinary Practice")
+        
         custom_input = st.text_input(
-            "Enter your essay question, test prompt, or topic to discuss:",
+            "Enter your topic, question, or focus area:",
             placeholder="e.g. How far was Pentonville Prison a turning point in prison design and reform?",
             key="freestyle_custom_input"
         )
+        
+        freestyle_focus = st.radio(
+            "🎯 Select Disciplinary Practice Focus:",
+            ["Argument & Line of Reasoning", "Knowledge & Technical Vocabulary"],
+            horizontal=True,
+            key="freestyle_focus_selector"
+        )
+
         if st.button("Launch Freestyle Dialogue", type="primary", use_container_width=True):
             if custom_input.strip():
                 with st.spinner("Checking specification alignment and context..."):
@@ -354,11 +367,13 @@ if st.session_state.active_topic is None and not st.session_state.is_freestyle:
                 if alignment.get("is_aligned", True):
                     st.session_state.app_mode = "socratic"
                     st.session_state.is_freestyle = True
-                    st.session_state.active_unit = "Freestyle Essay Prep"
+                    st.session_state.active_unit = "Freestyle Practice"
                     st.session_state.active_topic = custom_input.strip()
                     st.session_state.freestyle_prompt = custom_input.strip()
+                    st.session_state.freestyle_focus = freestyle_focus
                     st.session_state.graph_state["sub_topic"] = custom_input.strip()
                     st.session_state.graph_state["is_freestyle"] = True
+                    st.session_state.graph_state["freestyle_focus"] = freestyle_focus
                     st.rerun()
                 else:
                     st.error(f"⚠️ **Topic Alignment Guardrail:** {alignment.get('reasoning', 'Topic out of spec scope.')}")
@@ -404,7 +419,7 @@ elif st.session_state.app_mode == "socratic":
     with st.sidebar:
         st.subheader("📌 Active Target")
         if st.session_state.is_freestyle:
-            st.info(f"**Mode:** 🎙️ Freestyle Essay Prep\n\n**Topic / Question:** {st.session_state.active_topic}")
+            st.info(f"**Mode:** 🎙️ Freestyle Practice\n\n**Focus:** {st.session_state.get('freestyle_focus', 'Argument & Line of Reasoning')}\n\n**Topic:** {st.session_state.active_topic}")
             st.metric(label="Exchanges", value=f"{student_turns}")
         else:
             st.info(f"**Unit:** {st.session_state.active_unit}\n\n**Topic:** {st.session_state.active_topic}")
@@ -414,7 +429,7 @@ elif st.session_state.app_mode == "socratic":
         st.write("---")
         
         if st.session_state.is_freestyle and not st.session_state.socratic_dialogue_complete:
-            if st.button("🎯 Ready to Synthesise / Write Essay Plan", type="primary", use_container_width=True):
+            if st.button("🎯 Ready to Synthesise / Write Summary", type="primary", use_container_width=True):
                 st.session_state.socratic_dialogue_complete = True
                 st.rerun()
                 
@@ -423,10 +438,16 @@ elif st.session_state.app_mode == "socratic":
 
     if len(st.session_state.messages) == 0:
         if st.session_state.is_freestyle:
-            initial_greeting = (
-                f"Welcome! Let's prepare an essay or test answer for: **'{st.session_state.active_topic}'**. "
-                f"To begin, what is your initial line of argument or main thesis?"
-            )
+            if "Knowledge" in st.session_state.get("freestyle_focus", ""):
+                initial_greeting = (
+                    f"Welcome! Let's build your technical knowledge and vocabulary for: **'{st.session_state.active_topic}'**. "
+                    f"To begin, what key historical terms, figures, dates, or legislation are most central to this topic?"
+                )
+            else:
+                initial_greeting = (
+                    f"Welcome! Let's develop your line of reasoning for: **'{st.session_state.active_topic}'**. "
+                    f"To begin, what is your main thesis statement or core line of argument?"
+                )
         else:
             initial_greeting = (
                 f"Welcome! We're exploring **{st.session_state.active_topic}** today. "
@@ -465,7 +486,8 @@ elif st.session_state.app_mode == "socratic":
                 "sub_topic": st.session_state.active_topic,
                 "turn_count": current_student_turns,
                 "is_final_turn": (not st.session_state.is_freestyle and current_student_turns >= TARGET_TURNS),
-                "is_freestyle": st.session_state.is_freestyle
+                "is_freestyle": st.session_state.is_freestyle,
+                "freestyle_focus": st.session_state.get("freestyle_focus", "Argument & Line of Reasoning")
             }
             updated_state = workflow.invoke(input_payload)
         
@@ -494,6 +516,7 @@ elif st.session_state.app_mode == "socratic":
                     st.session_state.socratic_synthesis_q = generate_freestyle_synthesis_prompt(
                         custom_prompt=st.session_state.active_topic,
                         chat_history=st.session_state.messages,
+                        focus_mode=st.session_state.get("freestyle_focus", "Argument & Line of Reasoning"),
                         course_title=COURSE_TITLE,
                         level=LEVEL
                     )
