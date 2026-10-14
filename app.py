@@ -48,6 +48,12 @@ if "GOOGLE_API_KEY" in st.secrets:
 import socratic_fsm
 importlib.reload(socratic_fsm)
 
+# --- PERFORMANCE OPTIMIZATION: PRE-WARM VECTOR DB & EMBEDDINGS ---
+try:
+    socratic_fsm.get_vector_db()
+except Exception:
+    pass
+
 from socratic_fsm import (
     workflow,
     verify_topic_alignment,
@@ -154,6 +160,8 @@ def md_to_html(text: str) -> str:
     text = re.sub(r'\n{2,}', '<br>', text)
     text = text.replace('\n', '<br>')
     return re.sub(r'(<br\s*/?>\s*)+', '<br>', text)
+
+    
 
 # --- CSS Styling ---
 st.markdown(f"""
